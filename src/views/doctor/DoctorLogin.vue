@@ -9,7 +9,7 @@
     </section>
 
     <section class="login-section">
-      <h2>Doctor Sign-In</h2>
+      <h2>Doctor Login</h2>
 
       <form @submit.prevent="login">
         <div class="form-group">
@@ -28,7 +28,7 @@
           </router-link>
         </div>
 
-        <button type="submit">Sign In</button>
+        <button type="submit">Login</button>
       </form>
     </section>
   </div>

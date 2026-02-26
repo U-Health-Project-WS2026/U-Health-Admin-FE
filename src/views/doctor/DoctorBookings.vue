@@ -2,123 +2,107 @@
   <div class="page">
 
     <nav class="navbar">
-      <router-link to="/doctor/dashboard" class="nav-link">Dashboard</router-link>
-      <router-link to="/doctor/patients" class="nav-link">Patients</router-link>
-      <router-link to="/doctor/diseases" class="nav-link">Diseases</router-link>
-      <router-link to="/doctor/medications" class="nav-link">Medications</router-link>
+      <div class="nav-left">
+        <router-link to="/doctor/dashboard" class="nav-link">Dashboard</router-link>
+        <router-link to="/doctor/patients" class="nav-link">Patients</router-link>
+        <router-link to="/doctor/bookings" class="nav-link">Bookings</router-link>
+        <router-link to="/doctor/diseases" class="nav-link">Diseases</router-link>
+        <router-link to="/doctor/medications" class="nav-link">Medications</router-link>
+        <router-link to="/doctor/treatments" class="nav-link">Treatments</router-link>
+      </div>
+
+      <button class="logout-btn" @click="logout">Logout</button>
     </nav>
 
     <section class="hero">
-      <h1>Disease Management</h1>
-      <p>Create, search, view and delete diseases (UI only).</p>
+      <h1>Booking Management</h1>
+      <p>Manage doctor appointments.</p>
     </section>
 
     <section class="card">
 
-      <!-- Create -->
-      <h2 class="section-title">Create Disease</h2>
-      <form @submit.prevent="addDisease">
+      <h2>Create Booking</h2>
 
-        <div class="form-group">
-          <label>Disease Name</label>
-          <input v-model="newName" type="text" required />
-        </div>
+      <div class="form-row">
+        <input v-model="newPatient" placeholder="Patient name" />
+        <input v-model="newDate" type="date" />
+        <button @click="addBooking">Add</button>
+      </div>
 
-        <div class="form-group">
-          <label>Description</label>
-          <input v-model="newDescription" type="text" />
-        </div>
+      <h2>Search</h2>
+      <input v-model="search" placeholder="Search booking..." />
 
-        <button type="submit">Add Disease</button>
-      </form>
+      <h2>Bookings</h2>
 
-      <hr />
-
-      <!-- Search -->
-      <h2 class="section-title">Search</h2>
-      <input v-model="search" placeholder="Search disease..." />
-
-      <!-- Table -->
-      <h2 class="section-title">Diseases</h2>
       <table>
         <thead>
         <tr>
-          <th>Name</th>
-          <th>Description</th>
+          <th>Patient</th>
+          <th>Date</th>
           <th>Actions</th>
         </tr>
         </thead>
         <tbody>
-        <tr v-for="d in filteredDiseases" :key="d.id">
-          <td>{{ d.name }}</td>
-          <td>{{ d.description }}</td>
+        <tr v-for="b in filteredBookings" :key="b.id">
+          <td>{{ b.patient }}</td>
+          <td>{{ b.date }}</td>
           <td>
-            <button class="link-btn" @click="viewDisease(d)">View</button>
-            |
-            <button class="danger-btn" @click="deleteDisease(d.id)">Delete</button>
+            <button @click="removeBooking(b.id)">Delete</button>
           </td>
         </tr>
         </tbody>
       </table>
 
-      <!-- View -->
-      <div v-if="selected" class="details">
-        <h3>Disease Details</h3>
-        <p><strong>Name:</strong> {{ selected.name }}</p>
-        <p><strong>Description:</strong> {{ selected.description || '-' }}</p>
-
-        <button class="secondary" @click="selected = null">Close</button>
-      </div>
-
     </section>
-
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 
-interface Disease {
-  id: number
-  name: string
-  description: string
+const router = useRouter()
+
+function logout() {
+  localStorage.removeItem('token')
+  router.push('/doctor/login')
 }
 
-const diseases = ref<Disease[]>([
-  { id: 1, name: 'Hypertension', description: 'High blood pressure' },
-  { id: 2, name: 'Diabetes', description: 'Chronic metabolic disease' }
+interface Booking {
+  id: number
+  patient: string
+  date: string
+}
+
+const bookings = ref<Booking[]>([
+  { id: 1, patient: 'Anna Schmidt', date: '2026-03-01' },
+  { id: 2, patient: 'Max Mustermann', date: '2026-03-02' }
 ])
 
-const newName = ref('')
-const newDescription = ref('')
+const newPatient = ref('')
+const newDate = ref('')
 const search = ref('')
-const selected = ref<Disease | null>(null)
 
-function addDisease() {
-  if (!newName.value) return
+function addBooking() {
+  if (!newPatient.value || !newDate.value) return
 
-  diseases.value.unshift({
+  bookings.value.push({
     id: Date.now(),
-    name: newName.value,
-    description: newDescription.value
+    patient: newPatient.value,
+    date: newDate.value
   })
 
-  newName.value = ''
-  newDescription.value = ''
+  newPatient.value = ''
+  newDate.value = ''
 }
 
-function deleteDisease(id: number) {
-  diseases.value = diseases.value.filter(d => d.id !== id)
-  if (selected.value?.id === id) selected.value = null
+function removeBooking(id: number) {
+  bookings.value = bookings.value.filter(b => b.id !== id)
 }
 
-function viewDisease(d: Disease) {
-  selected.value = d
-}
-
-const filteredDiseases = computed(() =>
-  diseases.value.filter(d =>
-    d.name.toLowerCase().includes(search.value.toLowerCase())
+const filteredBookings = computed(() =>
+  bookings.value.filter(b =>
+    b.patient.toLowerCase().includes(search.value.toLowerCase())
   )
 )
 </script>
@@ -133,13 +117,33 @@ const filteredDiseases = computed(() =>
 .navbar {
   padding: 15px 40px;
   border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-left {
+  display: flex;
+  gap: 18px;
 }
 
 .nav-link {
-  margin-right: 20px;
   text-decoration: none;
   color: #1976d2;
   font-weight: 500;
+}
+
+.nav-link:hover {
+  text-decoration: underline;
+}
+
+.logout-btn {
+  padding: 6px 12px;
+  background-color: #e53935;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
 .hero {
@@ -159,48 +163,18 @@ const filteredDiseases = computed(() =>
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
-.section-title {
-  color: #1976d2;
-  margin-top: 20px;
-}
-
-.form-group {
-  margin-bottom: 12px;
-}
-
-input {
-  width: 100%;
-  padding: 8px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
+.form-row input {
+  margin-right: 8px;
   margin-bottom: 10px;
+  padding: 6px;
 }
 
 button {
-  padding: 8px 12px;
+  padding: 6px 10px;
   background-color: #1976d2;
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
-}
-
-.link-btn {
-  background: transparent;
-  color: #1976d2;
-  border: none;
-}
-
-.danger-btn {
-  background: transparent;
-  color: #c62828;
-  border: none;
-}
-
-.details {
-  margin-top: 20px;
-  padding: 15px;
-  border: 1px solid #eee;
-  border-radius: 8px;
 }
 </style>
