@@ -10,13 +10,20 @@
     </section>
 
     <section class="card">
-      <input v-model="currentPassword" type="password" placeholder="Current password" />
-      <input v-model="newPassword" type="password" placeholder="New password" />
-
-      <button @click="changePassword">Change password</button>
-
-      <p v-if="message" class="success">{{ message }}</p>
       <p v-if="error" class="error">{{ error }}</p>
+      <p v-if="success" class="success">{{ success }}</p>
+
+      <div class="field">
+        <label>Current Password</label>
+        <input v-model="currentPassword" type="password" placeholder="Current password" />
+      </div>
+
+      <div class="field">
+        <label>New Password</label>
+        <input v-model="newPassword" type="password" placeholder="New password" />
+      </div>
+
+      <button @click="changePassword">Change Password</button>
     </section>
   </div>
 </template>
@@ -27,21 +34,26 @@ import api from '@/services/api'
 
 const currentPassword = ref('')
 const newPassword = ref('')
-const message = ref('')
+
 const error = ref('')
+const success = ref('')
 
 async function changePassword() {
   try {
-    message.value = ''
     error.value = ''
+    success.value = ''
 
-    const payload = {
-      current_password: currentPassword.value,
-      password: newPassword.value
+    if (!currentPassword.value || !newPassword.value) {
+      error.value = 'Both fields are required.'
+      return
     }
 
-    await api.post('/change-password', payload)
-    message.value = 'Password updated.'
+    const res = await api.post('/change-password', {
+      current_password: currentPassword.value,
+      password: newPassword.value
+    })
+
+    success.value = res.data?.status ?? 'Password updated.'
     currentPassword.value = ''
     newPassword.value = ''
   } catch (e: any) {
@@ -55,12 +67,16 @@ async function changePassword() {
 .page { font-family: Arial, sans-serif; background: white; min-height: 100vh; }
 .navbar { padding: 15px 40px; border-bottom: 1px solid #eee; }
 .nav-link { text-decoration: none; color: #1976d2; font-weight: 500; }
+.nav-link:hover { text-decoration: underline; }
 .hero { text-align: center; padding: 60px 20px 30px; }
 .hero h1 { color: #1976d2; font-size: 34px; }
-.card { max-width: 520px; margin: 20px auto; padding: 20px; border-radius: 8px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-input { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; margin-bottom: 12px; }
-button { padding: 10px 12px; background-color: #1976d2; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%; }
+.hero p { color: #555; }
+.card { max-width: 600px; margin: 20px auto 40px; padding: 20px; border-radius: 8px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+label { color: #1976d2; font-weight: 600; font-size: 13px; }
+input { padding: 8px; border-radius: 6px; border: 1px solid #ccc; }
+button { padding: 8px 12px; background-color: #1976d2; color: white; border: none; border-radius: 6px; cursor: pointer; }
 button:hover { background-color: #145ea8; }
-.error { color: #c62828; margin-top: 10px; }
-.success { color: #2e7d32; margin-top: 10px; }
+.error { color: #c62828; margin-bottom: 10px; }
+.success { color: #2e7d32; margin-bottom: 10px; font-weight: 600; }
 </style>

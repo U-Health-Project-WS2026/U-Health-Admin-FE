@@ -11,41 +11,42 @@
 
     <section class="hero">
       <h1>Disease Management</h1>
-      <p>Create, update and manage diseases in U-Health.</p>
+      <p>Create, search and manage diseases.</p>
     </section>
 
     <section class="card">
-      <!-- Create -->
+
+      <!-- CREATE -->
       <div class="create-section">
         <input v-model="newDisease.name" placeholder="Name" />
         <input v-model="newDisease.description" placeholder="Description" />
         <input v-model="newDisease.icd_code" placeholder="ICD Code" />
-        <button @click="addDisease">Add</button>
+        <button @click="createDisease">Add</button>
+      </div>
+
+      <!-- SEARCH -->
+      <div class="search-row">
+        <input v-model="search" placeholder="Search disease..." />
+        <button @click="fetchDiseases">Search</button>
+        <button class="ghost-btn" @click="resetSearch">Reset</button>
       </div>
 
       <p v-if="error" class="error">{{ error }}</p>
-
-      <!-- Search -->
-      <div class="search-section">
-        <input
-            v-model="search"
-            placeholder="Search disease..."
-            @input="fetchDiseases"
-        />
-      </div>
 
       <table>
         <thead>
         <tr>
           <th>Name</th>
           <th>Description</th>
-          <th>ICD Code</th>
-          <th style="width: 240px;">Actions</th>
+          <th>ICD</th>
+          <th style="width:200px;">Actions</th>
         </tr>
         </thead>
 
         <tbody>
         <tr v-for="d in diseases" :key="d.id">
+
+          <!-- EDIT MODE -->
           <template v-if="editingId === d.id">
             <td><input v-model="editDisease.name" /></td>
             <td><input v-model="editDisease.description" /></td>
@@ -56,16 +57,18 @@
             </td>
           </template>
 
+          <!-- NORMAL MODE -->
           <template v-else>
             <td>{{ d.name }}</td>
             <td>{{ d.description }}</td>
             <td>{{ d.icd_code }}</td>
             <td>
-              <button class="ghost-btn" @click="startEdit(d)">Edit</button>
+              <button @click="startEdit(d)">Edit</button>
               |
               <button class="danger-btn" @click="deleteDisease(d.id)">Delete</button>
             </td>
           </template>
+
         </tr>
 
         <tr v-if="diseases.length === 0">
@@ -81,14 +84,7 @@
 import { ref, onMounted } from 'vue'
 import api from '@/services/api'
 
-type Disease = {
-  id: number
-  name: string
-  description: string
-  icd_code: string
-}
-
-const diseases = ref<Disease[]>([])
+const diseases = ref<any[]>([])
 const search = ref('')
 const error = ref('')
 
@@ -105,36 +101,39 @@ const editDisease = ref({
   icd_code: ''
 })
 
+onMounted(fetchDiseases)
+
 async function fetchDiseases() {
   try {
     error.value = ''
+
     const res = await api.get('/admin/diseases', {
-      params: { q: search.value }
+      params: search.value ? { q: search.value } : {}
     })
-    diseases.value = Array.isArray(res.data) ? res.data : (res.data.data ?? [])
+
+    diseases.value = res.data?.data ?? []
   } catch (e: any) {
-    console.error('DISEASE ERROR:', e?.response?.status)
     error.value = 'Could not load diseases.'
   }
 }
 
-onMounted(fetchDiseases)
+function resetSearch() {
+  search.value = ''
+  fetchDiseases()
+}
 
-async function addDisease() {
+async function createDisease() {
   try {
-    error.value = ''
-
     await api.post('/admin/diseases', newDisease.value)
 
     newDisease.value = { name: '', description: '', icd_code: '' }
-    await fetchDiseases()
+    fetchDiseases()
   } catch (e: any) {
-    const msg = e?.response?.data?.message
-    error.value = msg ?? 'Could not create disease.'
+    error.value = e?.response?.data?.message ?? 'Could not create disease.'
   }
 }
 
-function startEdit(d: Disease) {
+function startEdit(d: any) {
   editingId.value = d.id
   editDisease.value = {
     name: d.name,
@@ -149,21 +148,19 @@ function cancelEdit() {
 
 async function updateDisease(id: number) {
   try {
-    error.value = ''
     await api.put(`/admin/diseases/${id}`, editDisease.value)
     cancelEdit()
-    await fetchDiseases()
+    fetchDiseases()
   } catch (e: any) {
-    error.value = 'Could not update disease.'
+    error.value = e?.response?.data?.message ?? 'Could not update disease.'
   }
 }
 
 async function deleteDisease(id: number) {
   try {
-    error.value = ''
     await api.delete(`/admin/diseases/${id}`)
-    await fetchDiseases()
-  } catch (e: any) {
+    fetchDiseases()
+  } catch {
     error.value = 'Could not delete disease.'
   }
 }
@@ -172,19 +169,42 @@ async function deleteDisease(id: number) {
 <style scoped>
 .page { font-family: Arial, sans-serif; background: white; min-height: 100vh; }
 .navbar { padding: 15px 40px; border-bottom: 1px solid #eee; }
-.nav-link { margin-right: 20px; text-decoration: none; color: #1976d2; font-weight: 500; }
-.nav-link:hover { text-decoration: underline; }
+.nav-link { margin-right: 20px; text-decoration: none; color: #1976d2; }
 .hero { text-align: center; padding: 60px 20px 30px; }
-.hero h1 { color: #1976d2; font-size: 34px; }
-.card { max-width: 1000px; margin: 20px auto 40px; padding: 20px; border-radius: 8px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-input { padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-right: 8px; }
-button { padding: 8px 12px; background-color: #1976d2; color: white; border: none; border-radius: 6px; cursor: pointer; }
+.hero h1 { color: #1976d2; }
+
+.card {
+  max-width: 1100px;
+  margin: 20px auto;
+  padding: 20px;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.create-section,
+.search-row { margin-bottom: 15px; display: flex; gap: 10px; }
+
+input { padding: 8px; border-radius: 6px; border: 1px solid #ccc; }
+
+button {
+  padding: 6px 10px;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
 button:hover { background-color: #145ea8; }
+
 .ghost-btn { background: transparent; color: #1976d2; border: none; }
 .danger-btn { background: transparent; color: #c62828; border: none; }
-.error { color: #c62828; margin-top: 10px; }
-.muted { color: #777; text-align: center; padding: 12px; }
+
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 10px; border-bottom: 1px solid #eee; }
 th { text-align: left; color: #1976d2; }
+
+.muted { color: #777; text-align: center; }
+.error { color: #c62828; }
 </style>

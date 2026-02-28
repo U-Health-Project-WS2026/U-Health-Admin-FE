@@ -1,183 +1,208 @@
 <template>
   <div class="page">
-    <!-- Navigation -->
-    <nav class="navbar">
-      <router-link to="/doctor/dashboard" class="nav-link">Dashboard</router-link>
-      <router-link to="/doctor/patients" class="nav-link">Patients</router-link>
-      <router-link to="/doctor/bookings" class="nav-link">Bookings</router-link>
-      <router-link to="/doctor/diseases" class="nav-link">Diseases</router-link>
-      <router-link to="/doctor/medications" class="nav-link">Medications</router-link>
-      <router-link to="/doctor/treatments" class="nav-link">Treatments</router-link>
-    </nav>
 
-    <section class="hero">
-      <h1>Patient Details</h1>
-      <p>View patient information.</p>
+    <router-link to="/doctor/patients" class="back-link">
+      ← Back to Patients
+    </router-link>
+
+    <section v-if="patient" class="card">
+
+      <template v-if="editing">
+
+        <h2>Edit Patient</h2>
+
+        <div class="field">
+          <label>First Name</label>
+          <input v-model="editPatient.first_name" />
+        </div>
+
+        <div class="field">
+          <label>Last Name</label>
+          <input v-model="editPatient.last_name" />
+        </div>
+
+        <div class="field">
+          <label>Age</label>
+          <input v-model="editPatient.age" type="number" />
+        </div>
+
+        <div class="field">
+          <label>Sex</label>
+          <input v-model="editPatient.sex" />
+        </div>
+
+        <div class="field">
+          <label>Location</label>
+          <input v-model="editPatient.location" />
+        </div>
+
+        <div class="button-row">
+          <button @click="updatePatient">Save</button>
+          <button class="ghost-btn" @click="cancelEdit">Cancel</button>
+        </div>
+
+      </template>
+
+      <template v-else>
+
+        <h2>{{ patient.first_name }} {{ patient.last_name }}</h2>
+
+        <div class="info-row">
+          <strong>Age:</strong>
+          <span>{{ patient.age ?? '—' }}</span>
+        </div>
+
+        <div class="info-row">
+          <strong>Sex:</strong>
+          <span>{{ formatSex(patient.sex) }}</span>
+        </div>
+
+        <div class="info-row">
+          <strong>Location:</strong>
+          <span>{{ patient.location ?? '—' }}</span>
+        </div>
+
+        <hr />
+
+        <h3>User Information</h3>
+
+        <div class="info-row">
+          <strong>Username:</strong>
+          <span>{{ patient.user_info?.username ?? '—' }}</span>
+        </div>
+
+        <div class="info-row">
+          <strong>Email:</strong>
+          <span>{{ patient.user_info?.email ?? '—' }}</span>
+        </div>
+
+        <div class="info-row">
+          <strong>Email Verified:</strong>
+          <span>
+            {{ patient.user_info?.email_verified_at ? 'Yes' : 'No' }}
+          </span>
+        </div>
+
+        <div class="button-row">
+          <button @click="startEdit">Edit</button>
+        </div>
+
+      </template>
+
     </section>
 
-    <section class="card">
-      <p v-if="loading" class="muted">Loading...</p>
-      <p v-else-if="error" class="error">{{ error }}</p>
+    <p v-if="error" class="error">{{ error }}</p>
 
-      <div v-else>
-        <div class="row">
-          <span class="label">Name</span>
-          <span class="value">{{ fullName }}</span>
-        </div>
-
-        <div class="row" v-if="patientEmail">
-          <span class="label">Email</span>
-          <span class="value">{{ patientEmail }}</span>
-        </div>
-
-        <div class="row" v-if="patientId">
-          <span class="label">Patient ID</span>
-          <span class="value">{{ patientId }}</span>
-        </div>
-
-        <div class="actions">
-          <router-link to="/doctor/patients" class="back-link">← Back to Patients</router-link>
-        </div>
-      </div>
-    </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/services/api'
 
-type Patient = {
-  id?: number | string
-  first_name?: string
-  last_name?: string
-  name?: string
-  email?: string
-}
-
 const route = useRoute()
 
-const loading = ref(true)
+const patient = ref<any>(null)
+const editPatient = ref<any>({})
+const editing = ref(false)
 const error = ref('')
-const patient = ref<Patient | null>(null)
 
-const patientId = computed(() => patient.value?.id ?? '')
-const patientEmail = computed(() => patient.value?.email ?? '')
+onMounted(fetchPatient)
 
-const fullName = computed(() => {
-  if (!patient.value) return ''
-  if (patient.value.name) return patient.value.name
-
-  const first = patient.value.first_name ?? ''
-  const last = patient.value.last_name ?? ''
-  return `${first} ${last}`.trim()
-})
-
-onMounted(async () => {
+async function fetchPatient() {
   try {
-    error.value = ''
-    loading.value = true
-
-    const id = route.params.id
-    const res = await api.get(`/patients/${id}`)
-
+    const res = await api.get(`/admin/patients/${route.params.id}`)
     patient.value = res.data?.data ?? res.data
-  } catch (e: any) {
-    console.error('PATIENT DETAIL ERROR:', e?.response?.status, e?.response?.data)
-    error.value = 'Could not load patient details.'
-  } finally {
-    loading.value = false
+  } catch {
+    error.value = 'Could not load patient.'
   }
-})
+}
+
+function startEdit() {
+  editing.value = true
+  editPatient.value = {
+    first_name: patient.value.first_name,
+    last_name: patient.value.last_name,
+    age: patient.value.age,
+    sex: patient.value.sex,
+    location: patient.value.location
+  }
+}
+
+function cancelEdit() {
+  editing.value = false
+}
+
+async function updatePatient() {
+  try {
+    await api.put(`/admin/patients/${patient.value.id}`, editPatient.value)
+    editing.value = false
+    fetchPatient()
+  } catch {
+    error.value = 'Could not update patient.'
+  }
+}
+
+function formatSex(sex: any) {
+  if (sex === 1 || sex === '1') return 'Male'
+  if (sex === 0 || sex === '0') return 'Female'
+  return sex ?? '—'
+}
 </script>
 
 <style scoped>
-.page {
-  font-family: Arial, sans-serif;
-  background: white;
-  min-height: 100vh;
-}
+.page { font-family: Arial; padding: 40px; }
 
-/* NAVBAR */
-.navbar {
-  padding: 15px 40px;
-  border-bottom: 1px solid #eee;
-}
-
-.nav-link {
-  margin-right: 20px;
-  text-decoration: none;
-  color: #1976d2;
-  font-weight: 500;
-}
-
-.nav-link:hover {
-  text-decoration: underline;
-}
-
-/* HERO */
-.hero {
-  text-align: center;
-  padding: 60px 20px 30px;
-}
-
-.hero h1 {
-  color: #1976d2;
-  font-size: 34px;
-}
-
-.hero p {
-  color: #555;
-}
-
-/* CARD */
 .card {
   max-width: 700px;
-  margin: 20px auto 40px;
-  padding: 20px;
+  margin: 20px auto;
+  padding: 25px;
   border-radius: 8px;
   background: white;
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
-.row {
+.field {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+input {
+  padding: 6px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.info-row {
   display: flex;
   justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid #eee;
+  margin-bottom: 8px;
 }
 
-.label {
+.button-row {
+  margin-top: 15px;
+}
+
+button {
+  margin-right: 10px;
+  padding: 6px 10px;
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}
+
+button:hover {
+  background: #145ea8;
+}
+
+.ghost-btn {
+  background: transparent;
   color: #1976d2;
-  font-weight: 600;
 }
 
-.value {
-  color: #333;
-}
-
-.actions {
-  margin-top: 16px;
-}
-
-.back-link {
-  color: #1976d2;
-  text-decoration: none;
-}
-
-.back-link:hover {
-  text-decoration: underline;
-}
-
-.muted {
-  color: #777;
-  text-align: center;
-  padding: 12px;
-}
-
-.error {
-  color: #c62828;
-  text-align: center;
-}
+.error { color: #c62828; }
+.back-link { color: #1976d2; text-decoration: none; }
 </style>

@@ -6,48 +6,76 @@
 
     <section class="hero">
       <h1>Reset Password</h1>
-      <p>Enter the token from your email and set a new password.</p>
+      <p>Set a new password for your account.</p>
     </section>
 
     <section class="card">
-      <input v-model="token" placeholder="Reset token" />
-      <input v-model="email" type="email" placeholder="Email" />
-      <input v-model="password" type="password" placeholder="New password" />
-      <input v-model="passwordConfirmation" type="password" placeholder="Confirm new password" />
-
-      <button @click="resetPassword">Reset password</button>
-
-      <p v-if="message" class="success">{{ message }}</p>
       <p v-if="error" class="error">{{ error }}</p>
+      <p v-if="success" class="success">{{ success }}</p>
+
+      <div class="field">
+        <label>Email</label>
+        <input v-model="email" type="email" placeholder="you@example.com" />
+      </div>
+
+      <div class="field">
+        <label>Reset Token</label>
+        <input v-model="token" placeholder="token from email" />
+      </div>
+
+      <div class="field">
+        <label>New Password</label>
+        <input v-model="password" type="password" placeholder="New password" />
+      </div>
+
+      <div class="field">
+        <label>Confirm Password</label>
+        <input v-model="passwordConfirmation" type="password" placeholder="Confirm password" />
+      </div>
+
+      <button @click="resetPassword">Reset Password</button>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '@/services/api'
 
-const token = ref('')
+const router = useRouter()
+
 const email = ref('')
+const token = ref('')
 const password = ref('')
 const passwordConfirmation = ref('')
-const message = ref('')
+
 const error = ref('')
+const success = ref('')
 
 async function resetPassword() {
   try {
-    message.value = ''
     error.value = ''
+    success.value = ''
 
-    const payload = {
+    if (!email.value.trim() || !token.value.trim()) {
+      error.value = 'Email and token are required.'
+      return
+    }
+    if (!password.value || password.value !== passwordConfirmation.value) {
+      error.value = 'Passwords do not match.'
+      return
+    }
+
+    const res = await api.post('/reset-password', {
       token: token.value.trim(),
       email: email.value.trim(),
       password: password.value,
       password_confirmation: passwordConfirmation.value
-    }
+    })
 
-    await api.post('/reset-password', payload)
-    message.value = 'Password reset successful. You can now sign in.'
+    success.value = res.data?.status ?? 'Password reset successful.'
+    setTimeout(() => router.push('/doctor/login'), 800)
   } catch (e: any) {
     const msg = e?.response?.data?.message
     error.value = msg ? String(msg) : 'Could not reset password.'
@@ -59,12 +87,16 @@ async function resetPassword() {
 .page { font-family: Arial, sans-serif; background: white; min-height: 100vh; }
 .navbar { padding: 15px 40px; border-bottom: 1px solid #eee; }
 .nav-link { text-decoration: none; color: #1976d2; font-weight: 500; }
+.nav-link:hover { text-decoration: underline; }
 .hero { text-align: center; padding: 60px 20px 30px; }
 .hero h1 { color: #1976d2; font-size: 34px; }
-.card { max-width: 520px; margin: 20px auto; padding: 20px; border-radius: 8px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-input { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; margin-bottom: 12px; }
-button { padding: 10px 12px; background-color: #1976d2; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%; }
+.hero p { color: #555; }
+.card { max-width: 600px; margin: 20px auto 40px; padding: 20px; border-radius: 8px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+label { color: #1976d2; font-weight: 600; font-size: 13px; }
+input { padding: 8px; border-radius: 6px; border: 1px solid #ccc; }
+button { padding: 8px 12px; background-color: #1976d2; color: white; border: none; border-radius: 6px; cursor: pointer; }
 button:hover { background-color: #145ea8; }
-.error { color: #c62828; margin-top: 10px; }
-.success { color: #2e7d32; margin-top: 10px; }
+.error { color: #c62828; margin-bottom: 10px; }
+.success { color: #2e7d32; margin-bottom: 10px; font-weight: 600; }
 </style>
