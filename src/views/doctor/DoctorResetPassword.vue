@@ -19,11 +19,6 @@
       </div>
 
       <div class="field">
-        <label>Reset Token</label>
-        <input v-model="token" placeholder="token from email" />
-      </div>
-
-      <div class="field">
         <label>New Password</label>
         <input v-model="password" type="password" placeholder="New password" />
       </div>
@@ -39,11 +34,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import api from '@/services/api'
 
 const router = useRouter()
+const route = useRoute()
 
 const email = ref('')
 const token = ref('')
@@ -52,13 +48,23 @@ const passwordConfirmation = ref('')
 
 const error = ref('')
 const success = ref('')
+const loading = ref(false)
+
+onMounted(() => {
+  token.value = String(route.params.token ?? '')
+  email.value = String(route.query.email ?? '')
+})
 
 async function resetPassword() {
   try {
     error.value = ''
     success.value = ''
+    loading.value = true
 
-    if (!email.value.trim() || !token.value.trim()) {
+    const e = email.value.trim()
+    const t = token.value.trim()
+
+    if (!e || !t) {
       error.value = 'Email and token are required.'
       return
     }
@@ -68,17 +74,28 @@ async function resetPassword() {
     }
 
     const res = await api.post('/reset-password', {
-      token: token.value.trim(),
-      email: email.value.trim(),
+      token: t,
+      email: e,
       password: password.value,
       password_confirmation: passwordConfirmation.value
     })
 
-    success.value = res.data?.status ?? 'Password reset successful.'
+    success.value = String(res.data?.status ?? 'Password reset successful.')
     setTimeout(() => router.push('/doctor/login'), 800)
-  } catch (e: any) {
-    const msg = e?.response?.data?.message
-    error.value = msg ? String(msg) : 'Could not reset password.'
+  } catch (err: any) {
+    // Laravel gibt oft { message: "...", errors: { email: [...], password: [...] } }
+    const data = err?.response?.data
+    const msg = data?.message
+
+    if (data?.errors) {
+      const firstKey = Object.keys(data.errors)[0]
+      const firstMsg = firstKey ? data.errors[firstKey]?.[0] : null
+      error.value = String(firstMsg ?? msg ?? 'Could not reset password.')
+    } else {
+      error.value = String(msg ?? 'Could not reset password.')
+    }
+  } finally {
+    loading.value = false
   }
 }
 </script>

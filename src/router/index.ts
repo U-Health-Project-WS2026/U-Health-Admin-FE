@@ -17,7 +17,7 @@ const router = createRouter({
   routes: [
     { path: '/', redirect: '/doctor/login' },
     { path: '/doctor/login', component: DoctorLogin },
-    {path: '/doctor/reset-password',
+    {path: '/password-reset/:token',
       name: 'DoctorResetPassword',
       component: () => import('@/views/doctor/DoctorResetPassword.vue')},
     {path: '/doctor/forgot-password', name: 'DoctorForgotPassword',
