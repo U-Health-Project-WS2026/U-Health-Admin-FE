@@ -37,8 +37,8 @@
         </div>
 
         <div class="button-row">
-          <button @click="updatePatient">Save</button>
-          <button class="ghost-btn" @click="cancelEdit">Cancel</button>
+          <button type="button" @click="updatePatient">Save</button>
+          <button type="button" class="ghost-btn" @click="cancelEdit">Cancel</button>
         </div>
 
       </template>
@@ -84,7 +84,7 @@
         </div>
 
         <div class="button-row">
-          <button @click="startEdit">Edit</button>
+          <button type="button" @click="startEdit">Edit</button>
         </div>
 
       </template>
@@ -108,13 +108,17 @@ const editPatient = ref<any>({})
 const editing = ref(false)
 const error = ref('')
 
+const patientId = Number(route.params.id)
+
 onMounted(fetchPatient)
 
 async function fetchPatient() {
   try {
-    const res = await api.get(`/admin/patients/${route.params.id}`)
+    error.value = ''
+    const res = await api.get(`/admin/patients/${patientId}`)
     patient.value = res.data?.data ?? res.data
-  } catch {
+  } catch (e: any) {
+    console.error(e?.response?.status, e?.response?.data)
     error.value = 'Could not load patient.'
   }
 }
@@ -136,10 +140,21 @@ function cancelEdit() {
 
 async function updatePatient() {
   try {
-    await api.put(`/admin/patients/${patient.value.id}`, editPatient.value)
+    error.value = ''
+
+    await api.put(`/admin/patients/${patientId}`, {
+      first_name: editPatient.value.first_name,
+      last_name: editPatient.value.last_name,
+      age: Number(editPatient.value.age),
+      sex: editPatient.value.sex,
+      location: editPatient.value.location
+    })
+
     editing.value = false
-    fetchPatient()
-  } catch {
+    await fetchPatient()
+
+  } catch (e: any) {
+    console.error(e?.response?.status, e?.response?.data)
     error.value = 'Could not update patient.'
   }
 }

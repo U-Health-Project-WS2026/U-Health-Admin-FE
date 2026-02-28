@@ -78,7 +78,6 @@
       <!-- LIST -->
       <div class="list-header">
         <h3>Existing Treatments</h3>
-        <button class="ghost-btn" @click="fetchTreatments">Refresh</button>
       </div>
 
       <table>
@@ -89,6 +88,7 @@
           <th>Date</th>
           <th>Diagnosis</th>
           <th>Type</th>
+          <th style="width: 120px;">Actions</th>
         </tr>
         </thead>
 
@@ -99,10 +99,15 @@
           <td>{{ formatDate(t.date_of_treatment) }}</td>
           <td>{{ t.diagnosis }}</td>
           <td>{{ t.type_of_treatment }}</td>
+          <td>
+            <button class="danger-btn" @click="deleteTreatment(t.treatment_id ?? t.id)">
+              Delete
+            </button>
+          </td>
         </tr>
 
         <tr v-if="treatments.length === 0">
-          <td colspan="5" class="muted">No treatments found.</td>
+          <td colspan="6" class="muted">No treatments found.</td>
         </tr>
         </tbody>
       </table>
@@ -141,7 +146,7 @@ async function fetchPatients() {
     const res = await api.get('/admin/patients')
     patients.value = res.data?.data ?? []
   } catch {
-    // nicht abbrechen, nur leise
+    // keep silent like you had
   }
 }
 
@@ -216,6 +221,27 @@ async function createTreatment() {
   } catch (e: any) {
     const msg = e?.response?.data?.message
     error.value = msg ? String(msg) : 'Could not create treatment.'
+  }
+}
+
+async function deleteTreatment(id: any) {
+  try {
+    error.value = ''
+    success.value = ''
+
+    const tid = Number(id)
+    if (!Number.isFinite(tid) || tid <= 0) {
+      error.value = 'Invalid treatment id.'
+      return
+    }
+
+    await api.delete(`/admin/treatments/${tid}`)
+
+    success.value = 'Treatment deleted successfully.'
+    await fetchTreatments()
+  } catch (e: any) {
+    const msg = e?.response?.data?.message
+    error.value = msg ? String(msg) : 'Could not delete treatment.'
   }
 }
 

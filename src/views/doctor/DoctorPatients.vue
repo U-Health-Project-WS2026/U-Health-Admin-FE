@@ -104,7 +104,6 @@ async function fetchPatients() {
     const list = res.data?.data ?? []
     patients.value = Array.isArray(list) ? list : []
 
-    // Debug: damit du siehst, ob wirklich Daten ankommen
     console.log('PATIENTS FROM API:', patients.value)
   } catch (e: any) {
     const status = e?.response?.status

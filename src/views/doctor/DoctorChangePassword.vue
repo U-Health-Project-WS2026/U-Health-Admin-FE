@@ -48,7 +48,7 @@ async function changePassword() {
       return
     }
 
-    const res = await api.post('/change-password', {
+    const res = await api.post('/change-current-password', {
       current_password: currentPassword.value,
       password: newPassword.value
     })

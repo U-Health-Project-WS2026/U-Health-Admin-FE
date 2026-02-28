@@ -1,5 +1,6 @@
 <template>
   <div class="page">
+
     <nav class="navbar">
       <router-link to="/doctor/dashboard" class="nav-link">Dashboard</router-link>
       <router-link to="/doctor/patients" class="nav-link">Patients</router-link>
@@ -7,160 +8,190 @@
       <router-link to="/doctor/diseases" class="nav-link">Diseases</router-link>
       <router-link to="/doctor/medications" class="nav-link">Medications</router-link>
       <router-link to="/doctor/treatments" class="nav-link">Treatments</router-link>
-      <router-link to="/doctor/change-password" class="nav-link">Change Password</router-link>
+
+      <button class="logout-btn" @click="logout">Logout</button>
     </nav>
 
     <section class="hero">
       <h1>Doctor Dashboard</h1>
-      <p>Overview of U-Health admin data.</p>
+      <p>Overview of system statistics.</p>
     </section>
 
-    <section class="card">
-      <p v-if="error" class="error">{{ error }}</p>
+    <section class="stats-grid">
 
-      <div class="stats">
-        <div class="stat">
-          <div class="stat-label">Total Patients</div>
-          <div class="stat-value">{{ stats.totalPatients }}</div>
-        </div>
-
-        <div class="stat">
-          <div class="stat-label">Total Time Slots</div>
-          <div class="stat-value">{{ stats.totalSlots }}</div>
-        </div>
-
-        <div class="stat">
-          <div class="stat-label">Upcoming Booked</div>
-          <div class="stat-value">{{ stats.upcomingBooked }}</div>
-        </div>
-
-        <div class="stat">
-          <div class="stat-label">Booked Today</div>
-          <div class="stat-value">{{ stats.bookedToday }}</div>
-        </div>
-
-        <div class="stat">
-          <div class="stat-label">Free Upcoming</div>
-          <div class="stat-value">{{ stats.freeUpcoming }}</div>
-        </div>
+      <div class="stat-card">
+        <div class="stat-title">Total Patients</div>
+        <div class="stat-value">{{ totalPatients }}</div>
       </div>
 
-      <div class="actions">
-        <button @click="loadStats">Refresh</button>
+      <div class="stat-card">
+        <div class="stat-title">Total Time Slots</div>
+        <div class="stat-value">{{ totalSlots }}</div>
       </div>
+
+      <div class="stat-card">
+        <div class="stat-title">Upcoming Bookings</div>
+        <div class="stat-value">{{ upcomingBooked }}</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-title">Booked Today</div>
+        <div class="stat-value">{{ bookedToday }}</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-title">Free Upcoming</div>
+        <div class="stat-value">{{ freeUpcoming }}</div>
+      </div>
+
     </section>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '@/services/api'
 
-const error = ref('')
+const router = useRouter()
 
-const stats = ref({
-  totalPatients: 0,
-  totalSlots: 0,
-  upcomingBooked: 0,
-  bookedToday: 0,
-  freeUpcoming: 0
-})
+const totalPatients = ref(0)
+const totalSlots = ref(0)
+const upcomingBooked = ref(0)
+const freeUpcoming = ref(0)
+const bookedToday = ref(0)
 
-onMounted(loadStats)
+function logout() {
+  localStorage.removeItem('token')
+  router.push('/doctor/login')
+}
 
-async function loadStats() {
+async function loadDashboard() {
   try {
-    error.value = ''
+    // ---- PATIENTS ----
+    const patientsRes = await api.get('/admin/patients')
+    const patients = Array.isArray(patientsRes.data)
+        ? patientsRes.data
+        : (patientsRes.data?.data ?? [])
+    totalPatients.value = patients.length
 
-    const [patientsRes, bookingsRes] = await Promise.all([
-      api.get('/admin/patients'),
-      api.get('/admin/bookings')
-    ])
+    // ---- BOOKINGS ----
+    const bookingsRes = await api.get('/admin/bookings')
+    const bookings = Array.isArray(bookingsRes.data)
+        ? bookingsRes.data
+        : (bookingsRes.data?.data ?? [])
 
-    const patients = patientsRes.data?.data ?? []
-    const bookings = bookingsRes.data?.data ?? []
-
-    stats.value.totalPatients = Array.isArray(patients) ? patients.length : 0
-    stats.value.totalSlots = Array.isArray(bookings) ? bookings.length : 0
+    totalSlots.value = bookings.length
 
     const now = new Date()
-    const today = now.toISOString().slice(0, 10) // YYYY-MM-DD
 
-    let upcomingBooked = 0
-    let bookedToday = 0
-    let freeUpcoming = 0
-
-    for (const b of bookings) {
-      const start = b.time_slot_start ? new Date(b.time_slot_start) : null
-      const status = Number(b.status)
-
-      if (!start || Number.isNaN(start.getTime())) continue
-
-      const startDay = start.toISOString().slice(0, 10)
-
-      if (status === 1 && start >= now) upcomingBooked++
-      if (status === 1 && startDay === today) bookedToday++
-      if (status === 0 && start >= now) freeUpcoming++
+    const toStatus = (s: any) => Number(s)
+    const toDate = (v: any) => {
+      const d = new Date(v)
+      return Number.isNaN(d.getTime()) ? null : d
     }
 
-    stats.value.upcomingBooked = upcomingBooked
-    stats.value.bookedToday = bookedToday
-    stats.value.freeUpcoming = freeUpcoming
+    upcomingBooked.value = bookings.filter((b: any) => {
+      const start = toDate(b?.time_slot_start)
+      return start && toStatus(b?.status) === 1 && start >= now
+    }).length
 
-  } catch (e: any) {
-    error.value = 'Could not load dashboard statistics.'
+    freeUpcoming.value = bookings.filter((b: any) => {
+      const start = toDate(b?.time_slot_start)
+      return start && toStatus(b?.status) === 0 && start >= now
+    }).length
+
+  } catch (e) {
+    console.error('Dashboard load error', e)
   }
 }
+
+// ---- BOOKED TODAY SEPARAT ----
+async function fetchBookedToday() {
+  try {
+    const res = await api.get('/admin/bookings/today')
+
+    const raw = res.data?.message ?? res.data?.count ?? res.data
+    const n = Number(raw)
+
+    bookedToday.value = Number.isFinite(n) ? n : 0
+
+  } catch (e: any) {
+    console.error('BOOKED TODAY ERROR:', e?.response?.status, e?.response?.data)
+    bookedToday.value = 0
+  }
+}
+
+onMounted(async () => {
+  await loadDashboard()
+  await fetchBookedToday()
+})
 </script>
 
 <style scoped>
-.page { font-family: Arial, sans-serif; background: white; min-height: 100vh; }
+.page {
+  font-family: Arial, sans-serif;
+  background: white;
+  min-height: 100vh;
+}
 
-.navbar { padding: 15px 40px; border-bottom: 1px solid #eee; }
-.nav-link { margin-right: 20px; text-decoration: none; color: #1976d2; font-weight: 500; }
-.nav-link:hover { text-decoration: underline; }
+.navbar {
+  padding: 15px 40px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  gap: 20px;
+}
 
-.hero { text-align: center; padding: 60px 20px 30px; }
-.hero h1 { color: #1976d2; font-size: 34px; }
-.hero p { color: #555; }
+.nav-link {
+  text-decoration: none;
+  color: #1976d2;
+  font-weight: 500;
+}
 
-.card {
+.logout-btn {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: #c62828;
+  cursor: pointer;
+}
+
+.hero {
+  text-align: center;
+  padding: 60px 20px 30px;
+}
+
+.hero h1 {
+  color: #1976d2;
+  font-size: 34px;
+}
+
+.stats-grid {
   max-width: 1100px;
-  margin: 20px auto 40px;
+  margin: 20px auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.stat-card {
   padding: 20px;
   border-radius: 8px;
   background: white;
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  text-align: center;
 }
 
-.stats {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
+.stat-title {
+  color: #555;
+  font-size: 14px;
 }
 
-.stat {
-  border: 1px solid #eee;
-  border-radius: 8px;
-  padding: 12px;
-  background: #fff;
+.stat-value {
+  margin-top: 8px;
+  color: #1976d2;
+  font-size: 28px;
+  font-weight: 700;
 }
-
-.stat-label { color: #1976d2; font-weight: 600; font-size: 13px; margin-bottom: 6px; }
-.stat-value { font-size: 28px; font-weight: 700; color: #222; }
-
-.actions { display: flex; justify-content: flex-end; }
-
-button {
-  padding: 8px 12px;
-  background-color: #1976d2;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-button:hover { background-color: #145ea8; }
-
-.error { color: #c62828; margin-bottom: 10px; }
 </style>

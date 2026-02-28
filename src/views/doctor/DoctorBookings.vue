@@ -20,15 +20,15 @@
       <div class="create-section">
         <input type="datetime-local" v-model="newSlot.start" />
         <input type="datetime-local" v-model="newSlot.end" />
-        <button @click="createSlot">Add</button>
+        <button type="button" @click="createSlot">Add</button>
       </div>
 
       <!-- SEARCH -->
       <div class="search-section">
         <input v-model="searchName" placeholder="Search by patient name..." />
         <input v-model="searchId" placeholder="Search by patient ID..." />
-        <button @click="fetchBookings">Search</button>
-        <button class="ghost-btn" @click="resetSearch">Reset</button>
+
+        <button type="button" @click="fetchBookings">Search</button>
       </div>
 
       <p v-if="error" class="error">{{ error }}</p>
@@ -52,8 +52,8 @@
             <td><input type="datetime-local" v-model="editSlot.start" /></td>
             <td><input type="datetime-local" v-model="editSlot.end" /></td>
             <td colspan="3">
-              <button @click="updateSlot(b.booking_id)">Save</button>
-              <button class="ghost-btn" @click="cancelEdit">Cancel</button>
+              <button type="button" @click="updateSlot(b.booking_id)">Save</button>
+              <button type="button" class="ghost-btn" @click="cancelEdit">Cancel</button>
             </td>
           </template>
 
@@ -62,20 +62,20 @@
             <td>{{ formatDate(b.time_slot_start) }}</td>
             <td>{{ formatDate(b.time_slot_end) }}</td>
             <td>
-                <span :class="b.status === 1 ? 'booked' : 'free'">
-                  {{ b.status === 1 ? 'Booked' : 'Free' }}
-                </span>
+              <span :class="b.status === 1 ? 'booked' : 'free'">
+                {{ b.status === 1 ? 'Booked' : 'Free' }}
+              </span>
             </td>
             <td>
-                <span v-if="b.patients">
-                  {{ b.patients.first_name }} {{ b.patients.last_name }}
-                </span>
+              <span v-if="b.patients">
+                {{ b.patients.first_name }} {{ b.patients.last_name }}
+              </span>
               <span v-else>—</span>
             </td>
             <td>
-              <button @click="startEdit(b)" v-if="b.status === 0">Edit</button>
+              <button type="button" @click="startEdit(b)" v-if="b.status === 0">Edit</button>
               |
-              <button class="danger-btn" @click="deleteSlot(b.booking_id)">Delete</button>
+              <button type="button" class="danger-btn" @click="deleteSlot(b.booking_id)">Delete</button>
             </td>
           </template>
 
@@ -108,32 +108,36 @@ const editSlot = ref({ start: '', end: '' })
 
 onMounted(fetchBookings)
 
+
 async function fetchBookings() {
   try {
     error.value = ''
 
-    const params: any = {}
+    const res = await api.get('/admin/bookings')
+    const all = Array.isArray(res.data) ? res.data : (res.data?.data ?? [])
 
-    if (searchName.value.trim()) params.name = searchName.value
-    if (searchId.value.trim()) params.id = searchId.value
+    const nameQ = searchName.value.trim().toLowerCase()
+    const idQ = searchId.value.trim()
 
-    if (Object.keys(params).length > 0) {
-      const res = await api.get('/admin/bookings/search', { params })
-      bookings.value = res.data?.data ?? []
-    } else {
-      const res = await api.get('/admin/bookings')
-      bookings.value = res.data?.data ?? []
-    }
+    bookings.value = all.filter((b: any) => {
+      // patient info can be b.patients or b.patient depending on your resource
+      const p = b?.patients ?? b?.patient ?? null
 
-  } catch {
+      const first = String(p?.first_name ?? '').toLowerCase()
+      const last = String(p?.last_name ?? '').toLowerCase()
+      const full = `${first} ${last}`.trim()
+
+      const pid = String(b?.patient_id ?? p?.patient_id ?? '')
+
+      const matchName = !nameQ || full.includes(nameQ)
+      const matchId = !idQ || pid === idQ
+
+      return matchName && matchId
+    })
+  } catch (e: any) {
+    console.error('BOOKINGS ERROR:', e?.response?.status, e?.response?.data)
     error.value = 'Could not load bookings.'
   }
-}
-
-function resetSearch() {
-  searchName.value = ''
-  searchId.value = ''
-  fetchBookings()
 }
 
 async function createSlot() {
@@ -221,6 +225,7 @@ function formatDate(date: string) {
   margin-bottom: 15px;
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 input {
