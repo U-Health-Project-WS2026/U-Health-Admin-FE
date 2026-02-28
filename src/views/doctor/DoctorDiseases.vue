@@ -44,7 +44,7 @@
         </thead>
 
         <tbody>
-        <tr v-for="d in diseases" :key="d.id">
+        <tr v-for="d in diseases" :key="d.disease_id">
 
           <!-- EDIT MODE -->
           <template v-if="editingId === d.id">
@@ -52,7 +52,7 @@
             <td><input v-model="editDisease.description" /></td>
             <td><input v-model="editDisease.icd_code" /></td>
             <td>
-              <button @click="updateDisease(d.id)">Save</button>
+              <button @click="updateDisease(d.disease_id)">Save</button>
               <button class="ghost-btn" @click="cancelEdit">Cancel</button>
             </td>
           </template>
@@ -65,7 +65,7 @@
             <td>
               <button @click="startEdit(d)">Edit</button>
               |
-              <button class="danger-btn" @click="deleteDisease(d.id)">Delete</button>
+              <button class="danger-btn" @click="deleteDisease(d.disease_id)">Delete</button>
             </td>
           </template>
 
@@ -158,7 +158,7 @@ async function updateDisease(id: number) {
 
 async function deleteDisease(id: number) {
   try {
-    await api.delete(`/admin/diseases/${id}`)
+    await api.delete(`/admin/diseases/${Number(id)}`)
     fetchDiseases()
   } catch {
     error.value = 'Could not delete disease.'
